@@ -4,7 +4,11 @@
  * @packageDocumentation
  * @module debugger-extension
  */
-
+import {
+  // ITerminal,
+  // ITerminalTracker,
+  Terminal as XTerm
+} from '@jupyterlab/terminal';
 import {
   ILabShell,
   ILayoutRestorer,
@@ -23,7 +27,7 @@ import {
   showDialog,
   WidgetTracker
 } from '@jupyterlab/apputils';
-import { CodeCell } from '@jupyterlab/cells';
+// import { CodeCell } from '@jupyterlab/cells';
 import { IEditorServices } from '@jupyterlab/codeeditor';
 import { ConsolePanel, IConsoleTracker } from '@jupyterlab/console';
 import { PageConfig, PathExt } from '@jupyterlab/coreutils';
@@ -53,6 +57,7 @@ import { Session } from '@jupyterlab/services';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 import type { CommandRegistry } from '@lumino/commands';
+import { terminalIcon } from '@jupyterlab/ui-components';
 
 function notifyCommands(commands: CommandRegistry): void {
   Object.values(Debugger.CommandIDs).forEach(command => {
@@ -894,45 +899,65 @@ const main: JupyterFrontEndPlugin<void> = {
         editorServices.mimeTypeService.getMimeTypeByLanguage({ name }) ?? '';
       return mimeType;
     };
-
+    console.log('getMimeType', getMimeType);
     const rendermime = new RenderMimeRegistry({ initialFactories });
-
+    console.log('rendermime', rendermime);
     commands.addCommand(CommandIDs.evaluate, {
       label: trans.__('Evaluate Code'),
       caption: trans.__('Evaluate Code'),
       icon: Debugger.Icons.evaluateIcon,
-      isEnabled: () => service.hasStoppedThreads(),
+      isEnabled: () => true,
       execute: async () => {
-        const mimeType = await getMimeType();
-        const result = await Debugger.Dialogs.getCode({
-          title: trans.__('Evaluate Code'),
-          okLabel: trans.__('Evaluate'),
-          cancelLabel: trans.__('Cancel'),
-          mimeType,
-          contentFactory: new CodeCell.ContentFactory({
-            editorFactory: options =>
-              editorServices.factoryService.newInlineEditor(options)
-          }),
-          rendermime
-        });
-        const code = result.value;
-        if (!result.button.accept || !code) {
-          return;
-        }
-        const reply = await service.evaluate(code);
-        if (reply) {
-          const data = reply.result;
-          const path = service?.session?.connection?.path;
-          const logger = path ? loggerRegistry?.getLogger?.(path) : undefined;
+        // const mimeType = await getMimeType();
+        // const result = await Debugger.Dialogs.getCode({
+        //   title: trans.__('Evaluate Code'),
+        //   okLabel: trans.__('Evaluate'),
+        //   cancelLabel: trans.__('Cancel'),
+        //   mimeType,
+        //   contentFactory: new CodeCell.ContentFactory({
+        //     editorFactory: options =>
+        //       editorServices.factoryService.newInlineEditor(options)
+        //   }),
+        //   rendermime
+        // });
+        // const code = result.value;
+        // if (!result.button.accept || !code) {
+        //   return;
+        // }
+        // const reply = await service.evaluate(code);
+        // if (reply) {
+        //   const data = reply.result;
+        //   const path = service?.session?.connection?.path;
+        //   const logger = path ? loggerRegistry?.getLogger?.(path) : undefined;
 
-          if (logger) {
-            // print to log console of the notebook currently being debugged
-            logger.log({ type: 'text', data, level: logger.level });
-          } else {
-            // fallback to printing to devtools console
-            console.debug(data);
-          }
-        }
+        //   if (logger) {
+        //     // print to log console of the notebook currently being debugged
+        //     logger.log({ type: 'text', data, level: logger.level });
+        //   } else {
+        //     // fallback to printing to devtools console
+        //     console.debug(data);
+        //   }
+        // }
+
+        const localPath = undefined;
+
+        const session = await serviceManager.terminals.startNew({
+          cwd: localPath
+        });
+
+        const term = new XTerm(session, {}, translator);
+
+        term.title.icon = terminalIcon;
+        term.title.label = '...';
+
+        const main = new MainAreaWidget({ content: term, reveal: term.ready });
+        app.shell.add(main, 'main', {
+          mode: 'split-bottom',
+          type: 'Debug Terminal'
+        });
+        // void tracker.add(main);
+        app.shell.activateById(main.id);
+        return main;
       },
       describedBy: {
         args: {

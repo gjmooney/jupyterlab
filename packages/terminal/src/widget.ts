@@ -130,6 +130,11 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
       });
   }
 
+  // ! need a getter for this._term
+  get term(): Xterm {
+    return this._term;
+  }
+
   /**
    * A promise that is fulfilled when the terminal is ready.
    */
