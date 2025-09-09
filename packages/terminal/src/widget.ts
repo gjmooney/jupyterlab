@@ -13,6 +13,7 @@ import { Message, MessageLoop } from '@lumino/messaging';
 import { ISignal, Signal } from '@lumino/signaling';
 import { Widget } from '@lumino/widgets';
 import type {
+  IDisposable,
   ITerminalInitOnlyOptions,
   ITerminalOptions,
   Terminal as Xterm
@@ -399,7 +400,8 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
    */
   private _initializeTerm(): void {
     const term = this._term;
-    term.onData((data: string) => {
+    this._onDataDisposable = term.onData((data: string) => {
+      console.log('data in terminal ondata', data);
       if (this.isDisposed) {
         return;
       }
@@ -443,6 +445,7 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
     sender: TerminalNS.ITerminalConnection,
     msg: TerminalNS.IMessage
   ): void {
+    console.log('_onMEssafge', msg);
     switch (msg.type) {
       case 'stdout':
         if (msg.content) {
@@ -500,6 +503,10 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
     );
   }
 
+  get onDataDisposable() {
+    return this._onDataDisposable;
+  }
+
   private _fitAddon: FitAddon;
   private _searchAddon: SearchAddon;
   private _needsResize = true;
@@ -512,6 +519,7 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
   private _termOpened = false;
   private _trans: TranslationBundle;
   private _themeChanged = new Signal<this, void>(this);
+  private _onDataDisposable: IDisposable;
 }
 
 /**

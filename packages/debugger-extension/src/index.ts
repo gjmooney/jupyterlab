@@ -954,20 +954,22 @@ const main: JupyterFrontEndPlugin<void> = {
 
         // Set up simple input handling
         term.ready.then(() => {
+          term.onDataDisposable.dispose();
           // let inputBuffer = '';
-          const activeBuffer = term.term.buffer.active;
+          // const activeBuffer = term.term.buffer.active;
           let isEvaluating = false;
 
-          term.term.onLineFeed(() => {
+          term.term.onData((input: string) => {
             if (isEvaluating) {
               return; // Guard to prevent infinite loop
             }
 
-            console.log('onlinefeed');
-            const data = activeBuffer
-              .getLine(activeBuffer.baseY)
-              ?.translateToString();
-            let processedData = data;
+            console.log('input on on datatatatatattatatatatata ', input);
+            // console.log('onlinefeed');
+            // const data = activeBuffer
+            //   .getLine(activeBuffer.baseY)
+            //   ?.translateToString();
+            let processedData = input;
             console.log('pre processedData in callback', processedData);
 
             if (typeof processedData === 'string') {
@@ -987,7 +989,7 @@ const main: JupyterFrontEndPlugin<void> = {
                 console.log('result in then', result);
                 // Write output here instead of inside evaluateInput
                 console.log('isEvaluating in then', isEvaluating);
-                term.term.write(`${result?.result || 'undefined'}\r\n`);
+                term.term.write(`${result?.result || 'undefined'}\r\n$ `);
               })
               .catch(error => {
                 term.term.write(`Error: ${error}\r\n`);

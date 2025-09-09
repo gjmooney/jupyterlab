@@ -6,6 +6,7 @@ import { Terminal } from '@jupyterlab/services';
 import { Token } from '@lumino/coreutils';
 import { ISignal } from '@lumino/signaling';
 import { Widget } from '@lumino/widgets';
+import { IDisposable } from '@xterm/xterm';
 
 /**
  * A class that tracks editor widgets.
@@ -33,6 +34,8 @@ export namespace ITerminal {
      * The terminal session associated with the widget.
      */
     session: Terminal.ITerminalConnection;
+
+    onDataDisposable: IDisposable;
 
     /**
      * Get a config option for the terminal.

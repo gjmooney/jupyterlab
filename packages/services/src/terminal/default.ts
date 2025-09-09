@@ -94,6 +94,7 @@ export class TerminalConnection implements Terminal.ITerminalConnection {
    * the connection comes back up.
    */
   send(message: Terminal.IMessage): void {
+    console.log('looooord message', message);
     this._sendMessage(message);
   }
 
