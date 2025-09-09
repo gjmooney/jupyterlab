@@ -149,6 +149,7 @@ export class DebuggerHandler implements DebuggerHandler.IHandler {
       _: Session.ISessionConnection,
       msg: KernelMessage.IIOPubMessage
     ): void => {
+      console.log('does this happen'); // ! this can get the result that needs to be displayed
       if (
         this._service.isStarted &&
         !this._service.hasStoppedThreads() &&

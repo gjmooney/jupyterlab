@@ -77,6 +77,7 @@ function updateState(commands: CommandRegistry, debug: IDebugger): void {
   notifyCommands(commands);
 }
 
+const CONSOLE_ID = 'stringinsdfidfidfnidnfidnfdinfedif';
 /**
  * A plugin that provides visual debugging support for consoles.
  */
@@ -887,6 +888,7 @@ const main: JupyterFrontEndPlugin<void> = {
       }
     }
 
+    let _term: XTerm;
     // get the mime type of the kernel language for the current debug session
     const getMimeType = async (): Promise<string> => {
       const kernel = service.session?.connection?.kernel;
@@ -946,17 +948,27 @@ const main: JupyterFrontEndPlugin<void> = {
         });
 
         const term = new XTerm(session, {}, translator);
+        _term = term;
 
         term.title.icon = terminalIcon;
-        term.title.label = '...';
+        term.title.label = 'Debug Terminal';
+
+        // Wait for terminal to be ready, then set up debugger evaluation
+        term.ready.then(() => {
+          setupDebuggerTerminal(term, service);
+        });
 
         const main = new MainAreaWidget({ content: term, reveal: term.ready });
+        main.id = CONSOLE_ID;
         app.shell.add(main, 'main', {
           mode: 'split-bottom',
           type: 'Debug Terminal'
         });
         // void tracker.add(main);
         app.shell.activateById(main.id);
+
+        // term.term.write('this is a string hwats gewd');
+
         return main;
       },
       describedBy: {
@@ -966,6 +978,141 @@ const main: JupyterFrontEndPlugin<void> = {
         }
       }
     });
+
+    /**
+     * Set up the debugger terminal with input evaluation capabilities
+     */
+    function setupDebuggerTerminal(
+      term: XTerm,
+      debuggerService: IDebugger
+    ): void {
+      let inputBuffer = '';
+      let isProcessing = false;
+
+      // Override the onData handler to intercept input
+      term.term.onData = (data: string) => {
+        if (isProcessing) {
+          return; // Ignore input while processing
+        }
+
+        // Handle special keys
+        if (data === '\r' || data === '\n') {
+          // Enter key pressed - process the input
+          if (inputBuffer.trim()) {
+            isProcessing = true;
+            processDebuggerInput(
+              term,
+              debuggerService,
+              inputBuffer.trim()
+            ).finally(() => {
+              isProcessing = false;
+            });
+            inputBuffer = '';
+          } else {
+            // Empty input - just show new prompt
+            term.term.write('\r\n>>> ');
+          }
+        } else if (data === '\u007f' || data === '\b') {
+          // Backspace - remove last character from buffer
+          if (inputBuffer.length > 0) {
+            inputBuffer = inputBuffer.slice(0, -1);
+            term.term.write('\b \b'); // Move cursor back, write space, move back again
+          }
+        } else if (data === '\u0003') {
+          // Ctrl+C - clear input buffer
+          inputBuffer = '';
+          term.term.write('^C\r\n>>> ');
+        } else if (data >= ' ') {
+          // Printable character - add to buffer and echo to terminal
+          inputBuffer += data;
+          term.term.write(data);
+        }
+      };
+
+      // Show initial prompt
+      term.term.write(
+        'Debug Terminal - Type Python code to evaluate in debugger context\r\n'
+      );
+      term.term.write('>>> ');
+    }
+
+    /**
+     * Process input through the debugger service
+     */
+    async function processDebuggerInput(
+      term: XTerm,
+      debuggerService: IDebugger,
+      input: string
+    ): Promise<void> {
+      try {
+        // Check if debugger has stopped threads
+        if (!debuggerService.hasStoppedThreads()) {
+          term.term.write(
+            '\r\n[Error] Debugger does not have stopped threads - cannot evaluate\r\n'
+          );
+          term.term.write('>>> ');
+          return;
+        }
+
+        // Handle special commands
+        if (input === 'clear' || input === 'cls') {
+          term.term.write('\x1b[2J\x1b[H'); // Clear screen
+          term.term.write(
+            'Debug Terminal - Type Python code to evaluate in debugger context\r\n'
+          );
+          term.term.write('>>> ');
+          return;
+        }
+
+        if (input === 'help') {
+          term.term.write('\r\nAvailable commands:\r\n');
+          term.term.write('  clear/cls - Clear the terminal\r\n');
+          term.term.write('  help - Show this help message\r\n');
+          term.term.write('  exit/quit - Exit the debug terminal\r\n');
+          term.term.write(
+            '  Any other input will be evaluated as Python code\r\n'
+          );
+          term.term.write('>>> ');
+          return;
+        }
+
+        if (input === 'exit' || input === 'quit') {
+          term.term.write('\r\nExiting debug terminal...\r\n');
+          return;
+        }
+
+        // Show that we're processing
+        term.term.write('\r\n[Evaluating...]');
+
+        // Evaluate the input using the debugger service
+        const result = await debuggerService.evaluate(input);
+
+        // Clear the "Evaluating..." message
+        term.term.write('\r\x1b[K'); // Move to beginning of line and clear it
+
+        if (result && result.result !== undefined) {
+          // Display the result
+          const resultStr =
+            typeof result.result === 'string'
+              ? result.result
+              : JSON.stringify(result.result, null, 2);
+
+          term.term.write(`\r\n${resultStr}\r\n`);
+        } else {
+          term.term.write('\r\n[No result]\r\n');
+        }
+      } catch (error) {
+        // Clear the "Evaluating..." message
+        term.term.write('\r\x1b[K'); // Move to beginning of line and clear it
+
+        // Display error
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        term.term.write(`\r\n[Error] ${errorMsg}\r\n`);
+      } finally {
+        // Show new prompt
+        term.term.write('>>> ');
+      }
+    }
 
     commands.addCommand(CommandIDs.debugContinue, {
       label: () => {
@@ -1056,6 +1203,8 @@ const main: JupyterFrontEndPlugin<void> = {
       isEnabled: () => service.hasStoppedThreads(),
       execute: async () => {
         await service.stepOut();
+        //@ts-expect-error hjshshs
+        _term.term.write('jsjsddfjfjdfjdfj');
       },
       describedBy: {
         args: {
