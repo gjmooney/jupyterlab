@@ -968,10 +968,11 @@ const main: JupyterFrontEndPlugin<void> = {
               .getLine(activeBuffer.baseY)
               ?.translateToString();
             let processedData = data;
+            console.log('pre processedData in callback', processedData);
 
             if (typeof processedData === 'string') {
               if (processedData.startsWith('$ ')) {
-                processedData = processedData.slice(6);
+                processedData = processedData.slice(2);
               }
             }
 
@@ -983,6 +984,7 @@ const main: JupyterFrontEndPlugin<void> = {
             isEvaluating = true;
             evaluateInput(term, service, processedData?.trim() ?? '')
               .then(result => {
+                console.log('result in then', result);
                 // Write output here instead of inside evaluateInput
                 console.log('isEvaluating in then', isEvaluating);
                 term.term.write(`${result?.result || 'undefined'}\r\n`);
@@ -991,7 +993,10 @@ const main: JupyterFrontEndPlugin<void> = {
                 term.term.write(`Error: ${error}\r\n`);
               })
               .finally(() => {
-                isEvaluating = false;
+                setTimeout(() => {
+                  console.log('timeout');
+                  isEvaluating = false;
+                }, 2000);
               });
             // if (processedData === '\r' || processedData === '\n') {
             //   // Enter pressed - evaluate input
