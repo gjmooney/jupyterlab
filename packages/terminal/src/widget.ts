@@ -403,6 +403,7 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
       if (this.isDisposed) {
         return;
       }
+      console.log('session send from terminal widget');
       this.session.send({
         type: 'stdin',
         content: [data]

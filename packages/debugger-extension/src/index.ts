@@ -889,7 +889,6 @@ const main: JupyterFrontEndPlugin<void> = {
       }
     }
 
-    let _term: XTerm;
     // get the mime type of the kernel language for the current debug session
     const getMimeType = async (): Promise<string> => {
       const kernel = service.session?.connection?.kernel;
@@ -949,39 +948,61 @@ const main: JupyterFrontEndPlugin<void> = {
         });
 
         const term = new XTerm(session, {}, translator);
-        _term = term;
 
         term.title.icon = terminalIcon;
         term.title.label = 'Debug Terminal';
 
+        let isWriting = false;
         // Set up simple input handling
         term.ready.then(() => {
-          let inputBuffer = '';
+          // let inputBuffer = '';
+          const activeBuffer = term.term.buffer.active;
 
-          term.term.onData((data: string) => {
-            console.log('data', data);
-            if (data === '\r' || data === '\n') {
-              // Enter pressed - evaluate input
-              if (inputBuffer.trim()) {
-                evaluateInput(term, service, inputBuffer.trim());
-                inputBuffer = '';
-              }
-            } else if (data === '\b') {
-              // Backspace
-              console.log('backspace');
-              if (inputBuffer.length > 0) {
-                inputBuffer = inputBuffer.slice(0, -1);
-                term.term.write('\b \b');
-              }
-            } else {
-              // Regular character
-              inputBuffer += data;
-              console.log('inputBuffer', inputBuffer);
-              // term.term.write(data);
+          term.term.onLineFeed(() => {
+            if (isWriting) {
+              return;
             }
+
+            console.log('onlinefeed');
+            const data = activeBuffer
+              .getLine(activeBuffer.baseY)
+              ?.translateToString();
+            let processedData = data;
+
+            if (typeof processedData === 'string') {
+              if (processedData.startsWith('$ ')) {
+                processedData = processedData.slice(6);
+              }
+            }
+
+            console.log('processedData in callback', processedData);
+            if (!processedData) {
+              return;
+            }
+            evaluateInput(term, service, processedData?.trim() ?? '');
+            // if (processedData === '\r' || processedData === '\n') {
+            //   // Enter pressed - evaluate input
+            //   console.log('enter from callback');
+            //   if (processedData && processedData.trim()) {
+            //     evaluateInput(term, service, processedData?.trim() ?? '');
+            //     inputBuffer = '';
+            //   }
+            // } else if (processedData === '\b') {
+            //   // Backspace
+            //   console.log('backspace from callback');
+            //   if (processedData && processedData.length > 0) {
+            //     inputBuffer = inputBuffer.slice(0, -1);
+            //     term.term.write('\b \b');
+            //   }
+            // } else {
+            //   // Regular character
+            //   inputBuffer += processedData;
+            //   console.log('inputBuffer', inputBuffer);
+            //   // term.term.write(data);
+            // }
           });
 
-          term.term.write('>>> ');
+          // term.term.write('>>> \n');
         });
 
         const main = new MainAreaWidget({ content: term, reveal: term.ready });
@@ -1015,9 +1036,9 @@ const main: JupyterFrontEndPlugin<void> = {
       try {
         const result = await debuggerService.evaluate(input);
         console.log('result', result);
-        term.term.write(`\r\n${result?.result || 'undefined'}\r\n>>> `);
+        term.term.write(`${result?.result || 'undefined'}`);
       } catch (error) {
-        term.term.write(`\r\nError: ${error}\r\n>>> `);
+        term.term.write(`Error: ${error} `);
       }
     }
 
@@ -1110,7 +1131,6 @@ const main: JupyterFrontEndPlugin<void> = {
       isEnabled: () => service.hasStoppedThreads(),
       execute: async () => {
         await service.stepOut();
-        _term.term.write('jsjsddfjfjdfjdfj');
       },
       describedBy: {
         args: {

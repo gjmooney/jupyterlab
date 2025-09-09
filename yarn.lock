@@ -2914,8 +2914,10 @@ __metadata:
     "@jupyterlab/rendermime": ^4.5.0-alpha.3
     "@jupyterlab/services": ^7.5.0-alpha.3
     "@jupyterlab/settingregistry": ^4.5.0-alpha.3
+    "@jupyterlab/terminal": ^4.5.0-alpha.3
     "@jupyterlab/testing": ^4.5.0-alpha.3
     "@jupyterlab/translation": ^4.5.0-alpha.3
+    "@jupyterlab/ui-components": ^4.5.0-alpha.3
     "@lumino/commands": ^2.3.2
     "@types/jest": ^29.2.0
     "@types/react-dom": ^18.0.9
