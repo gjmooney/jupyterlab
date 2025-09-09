@@ -948,10 +948,8 @@ const main: JupyterFrontEndPlugin<void> = {
         });
 
         const term = new XTerm(session, {}, translator);
-
         term.title.icon = terminalIcon;
         term.title.label = 'Debug Terminal';
-
         // Set up simple input handling
         term.ready.then(() => {
           // Discard default terminal handling
@@ -959,27 +957,30 @@ const main: JupyterFrontEndPlugin<void> = {
 
           let inputBuffer = '';
 
-          term.term.onData((processedData: string) => {
-            console.log('ot actually processedData', processedData);
-            if (processedData === '\r' || processedData === '\n') {
+          term.term.onData(async (input: string) => {
+            console.log('ot actually processedData', input);
+            if (input === '\r' || input === '\n') {
               // Enter pressed - evaluate input
               console.log('enter from callback');
               // if (processedData && processedData.trim()) {
-              evaluateInput(term, service, inputBuffer);
+              const result = await evaluateInput(term, service, inputBuffer);
+
+              term.term.write(`\n\r${result?.result}\n\r$ `);
+
               inputBuffer = '';
               // }
-            } else if (processedData === '\b') {
+            } else if (input === '\b') {
               // Backspace
               console.log('backspace from callback');
-              if (processedData && processedData.length > 0) {
+              if (input && input.length > 0) {
                 inputBuffer = inputBuffer.slice(0, -1);
                 term.term.write('\b \b');
               }
             } else {
               // Regular character
-              inputBuffer += processedData;
+              inputBuffer += input;
               console.log('inputBuffer', inputBuffer);
-              term.term.write(processedData);
+              term.term.write(input);
             }
           });
 
@@ -988,6 +989,8 @@ const main: JupyterFrontEndPlugin<void> = {
 
         const main = new MainAreaWidget({ content: term, reveal: term.ready });
         main.id = CONSOLE_ID;
+        main.title.icon = terminalIcon;
+        main.title.label = 'Debug Terminal';
         app.shell.add(main, 'main', {
           mode: 'split-bottom',
           type: 'Debug Terminal'
@@ -1016,8 +1019,8 @@ const main: JupyterFrontEndPlugin<void> = {
       console.log('input', input);
       const result = await debuggerService.evaluate(input);
       console.log('result', result);
-      term.term.write(`\n\r${result?.result}\n\r$ `);
-      // return result; // Return instead of writing
+      // term.term.write(`\n\r${result?.result}\n\r$ `);
+      return result; // Return instead of writing
       // try {
       // } catch (error) {
       //   throw error; // Throw instead of writing
