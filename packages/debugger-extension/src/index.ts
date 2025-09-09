@@ -954,72 +954,33 @@ const main: JupyterFrontEndPlugin<void> = {
 
         // Set up simple input handling
         term.ready.then(() => {
+          // Discard default terminal handling
           term.onDataDisposable.dispose();
-          // let inputBuffer = '';
-          // const activeBuffer = term.term.buffer.active;
-          let isEvaluating = false;
 
-          term.term.onData((input: string) => {
-            if (isEvaluating) {
-              return; // Guard to prevent infinite loop
-            }
+          let inputBuffer = '';
 
-            console.log('input on on datatatatatattatatatatata ', input);
-            // console.log('onlinefeed');
-            // const data = activeBuffer
-            //   .getLine(activeBuffer.baseY)
-            //   ?.translateToString();
-            let processedData = input;
-            console.log('pre processedData in callback', processedData);
-
-            if (typeof processedData === 'string') {
-              if (processedData.startsWith('$ ')) {
-                processedData = processedData.slice(2);
+          term.term.onData((processedData: string) => {
+            console.log('ot actually processedData', processedData);
+            if (processedData === '\r' || processedData === '\n') {
+              // Enter pressed - evaluate input
+              console.log('enter from callback');
+              // if (processedData && processedData.trim()) {
+              evaluateInput(term, service, inputBuffer);
+              inputBuffer = '';
+              // }
+            } else if (processedData === '\b') {
+              // Backspace
+              console.log('backspace from callback');
+              if (processedData && processedData.length > 0) {
+                inputBuffer = inputBuffer.slice(0, -1);
+                term.term.write('\b \b');
               }
+            } else {
+              // Regular character
+              inputBuffer += processedData;
+              console.log('inputBuffer', inputBuffer);
+              term.term.write(processedData);
             }
-
-            console.log('processedData in callback', processedData);
-            if (!processedData) {
-              return;
-            }
-
-            isEvaluating = true;
-            evaluateInput(term, service, processedData?.trim() ?? '')
-              .then(result => {
-                console.log('result in then', result);
-                // Write output here instead of inside evaluateInput
-                console.log('isEvaluating in then', isEvaluating);
-                term.term.write(`${result?.result || 'undefined'}\r\n$ `);
-              })
-              .catch(error => {
-                term.term.write(`Error: ${error}\r\n`);
-              })
-              .finally(() => {
-                setTimeout(() => {
-                  console.log('timeout');
-                  isEvaluating = false;
-                }, 2000);
-              });
-            // if (processedData === '\r' || processedData === '\n') {
-            //   // Enter pressed - evaluate input
-            //   console.log('enter from callback');
-            //   if (processedData && processedData.trim()) {
-            //     evaluateInput(term, service, processedData?.trim() ?? '');
-            //     inputBuffer = '';
-            //   }
-            // } else if (processedData === '\b') {
-            //   // Backspace
-            //   console.log('backspace from callback');
-            //   if (processedData && processedData.length > 0) {
-            //     inputBuffer = inputBuffer.slice(0, -1);
-            //     term.term.write('\b \b');
-            //   }
-            // } else {
-            //   // Regular character
-            //   inputBuffer += processedData;
-            //   console.log('inputBuffer', inputBuffer);
-            //   // term.term.write(data);
-            // }
           });
 
           // term.term.write('>>> \n');
@@ -1055,7 +1016,8 @@ const main: JupyterFrontEndPlugin<void> = {
       console.log('input', input);
       const result = await debuggerService.evaluate(input);
       console.log('result', result);
-      return result; // Return instead of writing
+      term.term.write(`\n\r${result?.result}\n\r$ `);
+      // return result; // Return instead of writing
       // try {
       // } catch (error) {
       //   throw error; // Throw instead of writing
