@@ -952,15 +952,15 @@ const main: JupyterFrontEndPlugin<void> = {
         term.title.icon = terminalIcon;
         term.title.label = 'Debug Terminal';
 
-        let isWriting = false;
         // Set up simple input handling
         term.ready.then(() => {
           // let inputBuffer = '';
           const activeBuffer = term.term.buffer.active;
+          let isEvaluating = false;
 
           term.term.onLineFeed(() => {
-            if (isWriting) {
-              return;
+            if (isEvaluating) {
+              return; // Guard to prevent infinite loop
             }
 
             console.log('onlinefeed');
@@ -979,7 +979,20 @@ const main: JupyterFrontEndPlugin<void> = {
             if (!processedData) {
               return;
             }
-            evaluateInput(term, service, processedData?.trim() ?? '');
+
+            isEvaluating = true;
+            evaluateInput(term, service, processedData?.trim() ?? '')
+              .then(result => {
+                // Write output here instead of inside evaluateInput
+                console.log('isEvaluating in then', isEvaluating);
+                term.term.write(`${result?.result || 'undefined'}\r\n`);
+              })
+              .catch(error => {
+                term.term.write(`Error: ${error}\r\n`);
+              })
+              .finally(() => {
+                isEvaluating = false;
+              });
             // if (processedData === '\r' || processedData === '\n') {
             //   // Enter pressed - evaluate input
             //   console.log('enter from callback');
@@ -1033,13 +1046,13 @@ const main: JupyterFrontEndPlugin<void> = {
       input: string
     ) {
       console.log('input', input);
-      try {
-        const result = await debuggerService.evaluate(input);
-        console.log('result', result);
-        term.term.write(`${result?.result || 'undefined'}`);
-      } catch (error) {
-        term.term.write(`Error: ${error} `);
-      }
+      const result = await debuggerService.evaluate(input);
+      console.log('result', result);
+      return result; // Return instead of writing
+      // try {
+      // } catch (error) {
+      //   throw error; // Throw instead of writing
+      // }
     }
 
     commands.addCommand(CommandIDs.debugContinue, {
