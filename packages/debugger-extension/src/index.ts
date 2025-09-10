@@ -961,36 +961,6 @@ const main: JupyterFrontEndPlugin<void> = {
       icon: Debugger.Icons.evaluateIcon,
       isEnabled: () => true,
       execute: async () => {
-        // const mimeType = await getMimeType();
-        // const result = await Debugger.Dialogs.getCode({
-        //   title: trans.__('Evaluate Code'),
-        //   okLabel: trans.__('Evaluate'),
-        //   cancelLabel: trans.__('Cancel'),
-        //   mimeType,
-        //   contentFactory: new CodeCell.ContentFactory({
-        //     editorFactory: options =>
-        //       editorServices.factoryService.newInlineEditor(options)
-        //   }),
-        //   rendermime
-        // });
-        // const code = result.value;
-        // if (!result.button.accept || !code) {
-        //   return;
-        // }
-        // const reply = await service.evaluate(code);
-        // if (reply) {
-        //   const data = reply.result;
-        //   const path = service?.session?.connection?.path;
-        //   const logger = path ? loggerRegistry?.getLogger?.(path) : undefined;
-
-        //   if (logger) {
-        //     // print to log console of the notebook currently being debugged
-        //     logger.log({ type: 'text', data, level: logger.level });
-        //   } else {
-        //     // fallback to printing to devtools console
-        //     console.debug(data);
-        //   }
-        // }
         const debugConsole = createDebugConsole(
           consolePanelContentFactory,
           editorServices,
