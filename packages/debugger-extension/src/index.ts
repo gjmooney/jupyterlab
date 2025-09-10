@@ -60,6 +60,8 @@ import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 import type { CommandRegistry } from '@lumino/commands';
 import { terminalIcon } from '@jupyterlab/ui-components';
 
+const TERM_PROMPT = '\r\n$ ';
+
 function notifyCommands(commands: CommandRegistry): void {
   Object.values(Debugger.CommandIDs).forEach(command => {
     if (commands.hasCommand(command)) {
@@ -956,31 +958,67 @@ const main: JupyterFrontEndPlugin<void> = {
           term.onDataDisposable.dispose();
 
           let inputBuffer = '';
+          let cursorPosition = 0;
 
           term.term.onData(async (input: string) => {
             console.log('ot actually processedData', input);
-            if (input === '\r' || input === '\n') {
-              // Enter pressed - evaluate input
-              console.log('enter from callback');
-              // if (processedData && processedData.trim()) {
-              const result = await evaluateInput(term, service, inputBuffer);
 
-              term.term.write(`\n\r${result?.result}\n\r$ `);
+            switch (input) {
+              case '\x1b[A': // up arrow
+              case '\x1b[B': // down arrow
+                // TODO - history
+                return;
+              case '\x1b[D': // left arrow
+                if (cursorPosition > 0) {
+                  term.term.write(input); // Echo the escape sequence to move cursor
+                  cursorPosition--;
+                }
+                break;
+              case '\x1b[C': // right arrow
+                if (cursorPosition < inputBuffer.length) {
+                  term.term.write(input); // Echo the escape sequence to move cursor
+                  cursorPosition++;
+                }
+                break;
+              case '\r':
+              case '\n':
+                // Enter pressed - evaluate input
+                console.log('enter from callback');
+                const result = await evaluateInput(term, service, inputBuffer);
 
-              inputBuffer = '';
-              // }
-            } else if (input === '\b') {
-              // Backspace
-              console.log('backspace from callback');
-              if (input && input.length > 0) {
-                inputBuffer = inputBuffer.slice(0, -1);
-                term.term.write('\b \b');
-              }
-            } else {
-              // Regular character
-              inputBuffer += input;
-              console.log('inputBuffer', inputBuffer);
-              term.term.write(input);
+                if (result?.result === '') {
+                  term.term.write(TERM_PROMPT); // Just a new line
+                } else {
+                  term.term.write(`\n\r>>> ${result?.result}${TERM_PROMPT}`);
+                }
+                cursorPosition = 0;
+                inputBuffer = '';
+                break;
+
+              case '\x7F':
+              case '\b':
+                // Backspace
+                console.log('backspace from callback');
+                if (cursorPosition > 0) {
+                  // Move cursor left, delete character, shift left
+                  term.term.write('\x1b[D\x1b[P'); // \x1b[D: left arrow, \x1b[P: delete char
+                  inputBuffer =
+                    inputBuffer.slice(0, cursorPosition - 1) +
+                    inputBuffer.slice(cursorPosition);
+                  cursorPosition--;
+                }
+                break;
+
+              default:
+                // Regular character
+                console.log('inputBuffer', inputBuffer);
+                inputBuffer =
+                  inputBuffer.slice(0, cursorPosition) +
+                  input +
+                  inputBuffer.slice(cursorPosition);
+                cursorPosition++;
+                term.term.write(input);
+                break;
             }
           });
 
