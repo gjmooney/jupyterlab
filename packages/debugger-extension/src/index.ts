@@ -5,11 +5,7 @@
  * @packageDocumentation
  * @module debugger-extension
  */
-import {
-  // ITerminal,
-  // ITerminalTracker,
-  Terminal as XTerm
-} from '@jupyterlab/terminal';
+import { Terminal as XTerm } from '@jupyterlab/terminal';
 import {
   ILabShell,
   ILayoutRestorer,
@@ -28,7 +24,6 @@ import {
   showDialog,
   WidgetTracker
 } from '@jupyterlab/apputils';
-// import { CodeCell } from '@jupyterlab/cells';
 import { IEditorServices } from '@jupyterlab/codeeditor';
 import { ConsolePanel, IConsoleTracker } from '@jupyterlab/console';
 import { PageConfig, PathExt } from '@jupyterlab/coreutils';
@@ -61,6 +56,7 @@ import type { CommandRegistry } from '@lumino/commands';
 import { terminalIcon } from '@jupyterlab/ui-components';
 
 const TERM_PROMPT = '\r\n$ ';
+const CONSOLE_ID = 'debug-eval-terminal';
 
 function notifyCommands(commands: CommandRegistry): void {
   Object.values(Debugger.CommandIDs).forEach(command => {
@@ -80,7 +76,6 @@ function updateState(commands: CommandRegistry, debug: IDebugger): void {
   notifyCommands(commands);
 }
 
-const CONSOLE_ID = 'stringinsdfidfidfnidnfidnfdinfedif';
 /**
  * A plugin that provides visual debugging support for consoles.
  */
@@ -891,58 +886,12 @@ const main: JupyterFrontEndPlugin<void> = {
       }
     }
 
-    // get the mime type of the kernel language for the current debug session
-    const getMimeType = async (): Promise<string> => {
-      const kernel = service.session?.connection?.kernel;
-      if (!kernel) {
-        return '';
-      }
-      const info = (await kernel.info).language_info;
-      const name = info.name;
-      const mimeType =
-        editorServices.mimeTypeService.getMimeTypeByLanguage({ name }) ?? '';
-      return mimeType;
-    };
-    console.log('getMimeType', getMimeType);
-    const rendermime = new RenderMimeRegistry({ initialFactories });
-    console.log('rendermime', rendermime);
     commands.addCommand(CommandIDs.evaluate, {
       label: trans.__('Evaluate Code'),
       caption: trans.__('Evaluate Code'),
       icon: Debugger.Icons.evaluateIcon,
-      isEnabled: () => true,
+      isEnabled: () => service.hasStoppedThreads(),
       execute: async () => {
-        // const mimeType = await getMimeType();
-        // const result = await Debugger.Dialogs.getCode({
-        //   title: trans.__('Evaluate Code'),
-        //   okLabel: trans.__('Evaluate'),
-        //   cancelLabel: trans.__('Cancel'),
-        //   mimeType,
-        //   contentFactory: new CodeCell.ContentFactory({
-        //     editorFactory: options =>
-        //       editorServices.factoryService.newInlineEditor(options)
-        //   }),
-        //   rendermime
-        // });
-        // const code = result.value;
-        // if (!result.button.accept || !code) {
-        //   return;
-        // }
-        // const reply = await service.evaluate(code);
-        // if (reply) {
-        //   const data = reply.result;
-        //   const path = service?.session?.connection?.path;
-        //   const logger = path ? loggerRegistry?.getLogger?.(path) : undefined;
-
-        //   if (logger) {
-        //     // print to log console of the notebook currently being debugged
-        //     logger.log({ type: 'text', data, level: logger.level });
-        //   } else {
-        //     // fallback to printing to devtools console
-        //     console.debug(data);
-        //   }
-        // }
-
         const localPath = undefined;
 
         const session = await serviceManager.terminals.startNew({
@@ -952,7 +901,6 @@ const main: JupyterFrontEndPlugin<void> = {
         const term = new XTerm(session, {}, translator);
         term.title.icon = terminalIcon;
         term.title.label = 'Debug Terminal';
-        // Set up simple input handling
         term.ready.then(() => {
           // Discard default terminal handling
           term.onDataDisposable.dispose();
@@ -960,13 +908,12 @@ const main: JupyterFrontEndPlugin<void> = {
           let inputBuffer = '';
           let cursorPosition = 0;
 
+          // TODO: this should be its own thing probably
           term.term.onData(async (input: string) => {
-            console.log('ot actually processedData', input);
-
             switch (input) {
               case '\x1b[A': // up arrow
               case '\x1b[B': // down arrow
-                // TODO - history
+                // TODO: history
                 return;
               case '\x1b[D': // left arrow
                 if (cursorPosition > 0) {
@@ -982,9 +929,8 @@ const main: JupyterFrontEndPlugin<void> = {
                 break;
               case '\r':
               case '\n':
-                // Enter pressed - evaluate input
-                console.log('enter from callback');
-                const result = await evaluateInput(term, service, inputBuffer);
+                // Enter - evaluate input
+                const result = await service.evaluate(input);
 
                 if (result?.result === '') {
                   term.term.write(TERM_PROMPT); // Just a new line
@@ -998,7 +944,6 @@ const main: JupyterFrontEndPlugin<void> = {
               case '\x7F':
               case '\b':
                 // Backspace
-                console.log('backspace from callback');
                 if (cursorPosition > 0) {
                   // Move cursor left, delete character, shift left
                   term.term.write('\x1b[D\x1b[P'); // \x1b[D: left arrow, \x1b[P: delete char
@@ -1011,7 +956,6 @@ const main: JupyterFrontEndPlugin<void> = {
 
               default:
                 // Regular character
-                console.log('inputBuffer', inputBuffer);
                 inputBuffer =
                   inputBuffer.slice(0, cursorPosition) +
                   input +
@@ -1021,24 +965,24 @@ const main: JupyterFrontEndPlugin<void> = {
                 break;
             }
           });
-
-          // term.term.write('>>> \n');
         });
 
-        const main = new MainAreaWidget({ content: term, reveal: term.ready });
-        main.id = CONSOLE_ID;
-        main.title.icon = terminalIcon;
-        main.title.label = 'Debug Terminal';
-        app.shell.add(main, 'main', {
+        const termWidget = new MainAreaWidget({
+          content: term,
+          reveal: term.ready
+        });
+        termWidget.id = CONSOLE_ID;
+        termWidget.title.icon = terminalIcon;
+        termWidget.title.label = 'Debug Terminal';
+
+        app.shell.add(termWidget, 'main', {
           mode: 'split-bottom',
           type: 'Debug Terminal'
         });
-        // void tracker.add(main);
-        app.shell.activateById(main.id);
 
-        // term.term.write('this is a string hwats gewd');
+        app.shell.activateById(termWidget.id);
 
-        return main;
+        return termWidget;
       },
       describedBy: {
         args: {
@@ -1047,23 +991,6 @@ const main: JupyterFrontEndPlugin<void> = {
         }
       }
     });
-
-    // Simple input evaluation function
-    async function evaluateInput(
-      term: XTerm,
-      debuggerService: IDebugger,
-      input: string
-    ) {
-      console.log('input', input);
-      const result = await debuggerService.evaluate(input);
-      console.log('result', result);
-      // term.term.write(`\n\r${result?.result}\n\r$ `);
-      return result; // Return instead of writing
-      // try {
-      // } catch (error) {
-      //   throw error; // Throw instead of writing
-      // }
-    }
 
     commands.addCommand(CommandIDs.debugContinue, {
       label: () => {

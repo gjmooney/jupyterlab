@@ -35,6 +35,9 @@ export namespace ITerminal {
      */
     session: Terminal.ITerminalConnection;
 
+    /**
+     * The disposable associated with the xterm onData callback
+     */
     onDataDisposable: IDisposable;
 
     /**

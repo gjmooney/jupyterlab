@@ -131,16 +131,25 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
       });
   }
 
-  // ! need a getter for this._term
-  get term(): Xterm {
-    return this._term;
-  }
-
   /**
    * A promise that is fulfilled when the terminal is ready.
    */
   get ready(): Promise<void> {
     return this._ready.promise;
+  }
+
+  /**
+   * The underlying xterm instance associated with the widget
+   */
+  get term(): Xterm {
+    return this._term;
+  }
+
+  /**
+   * The disposable associated with the xterm onData callback
+   */
+  get onDataDisposable() {
+    return this._onDataDisposable;
   }
 
   /**
@@ -401,11 +410,9 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
   private _initializeTerm(): void {
     const term = this._term;
     this._onDataDisposable = term.onData((data: string) => {
-      console.log('data in terminal ondata', data);
       if (this.isDisposed) {
         return;
       }
-      console.log('session send from terminal widget');
       this.session.send({
         type: 'stdin',
         content: [data]
@@ -445,7 +452,6 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
     sender: TerminalNS.ITerminalConnection,
     msg: TerminalNS.IMessage
   ): void {
-    console.log('_onMEssafge', msg);
     switch (msg.type) {
       case 'stdout':
         if (msg.content) {
@@ -501,10 +507,6 @@ export class Terminal extends Widget implements ITerminal.ITerminal {
       'data-term-theme',
       theme ? theme.toLowerCase() : 'inherit'
     );
-  }
-
-  get onDataDisposable() {
-    return this._onDataDisposable;
   }
 
   private _fitAddon: FitAddon;
