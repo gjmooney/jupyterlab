@@ -1338,10 +1338,15 @@ const debugConsole: JupyterFrontEndPlugin<void> = {
     // Add the debugger console execute command
     app.commands.addCommand(CommandIDs.executeConsole, {
       label: 'Execute the current line in debug console.',
-      execute: () => {
+      execute: async () => {
         const currentWidget = debugConsoleTracker.currentWidget;
         if (currentWidget && currentWidget.console) {
-          return currentWidget.console.execute(true);
+          await currentWidget.console.execute(true);
+          // Ensure focus stays on the console prompt after execution
+          const promptCell = currentWidget.console.promptCell;
+          if (promptCell && promptCell.editor) {
+            promptCell.editor.focus();
+          }
         }
       },
       describedBy: {
