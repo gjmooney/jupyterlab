@@ -19,6 +19,9 @@
       "path": "../codeeditor"
     },
     {
+      "path": "../completer"
+    },
+    {
       "path": "../console"
     },
     {
@@ -35,6 +38,9 @@
     },
     {
       "path": "../logconsole"
+    },
+    {
+      "path": "../nbformat"
     },
     {
       "path": "../notebook"
