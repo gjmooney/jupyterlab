@@ -568,11 +568,16 @@ export class DebuggerService implements IDebugger, IDisposable {
     }
 
     const state = await this.session.restoreState();
-    const localBreakpoints = breakpoints
-      .filter(({ line }) => typeof line === 'number')
-      .map(({ line }) => ({ line: line! }));
+    const localBreakpoints = [
+      ...this._inMemoryBreakpoints
+        .filter(({ line }) => typeof line === 'number')
+        .map(({ line }) => ({ line: line! })),
+      ...breakpoints
+        .filter(({ line }) => typeof line === 'number')
+        .map(({ line }) => ({ line: line! }))
+    ];
     const remoteBreakpoints = this._mapBreakpoints(state.body.breakpoints);
-
+    console.log('localBreakpoints', localBreakpoints);
     // Set the local copy of breakpoints to reflect only editors that exist.
     if (this._debuggerSources) {
       const filtered = this._filterBreakpoints(remoteBreakpoints);
@@ -594,6 +599,8 @@ export class DebuggerService implements IDebugger, IDisposable {
       addedLines.add(val.line!);
       return cond1 && cond2;
     });
+
+    this._inMemoryBreakpoints = updatedBreakpoints;
 
     // Update the local model and finish kernel configuration.
     this._model.breakpoints.setBreakpoints(path, updatedBreakpoints);
@@ -1016,6 +1023,7 @@ export class DebuggerService implements IDebugger, IDisposable {
   private _specsManager: KernelSpec.IManager | null;
   private _trans: TranslationBundle;
   private _pauseOnExceptionChanged = new Signal<IDebugger, void>(this);
+  private _inMemoryBreakpoints: DebugProtocol.Breakpoint[] = [];
 }
 
 /**
