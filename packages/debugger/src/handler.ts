@@ -273,7 +273,7 @@ export class DebuggerHandler implements DebuggerHandler.IHandler {
         !this._service.session?.connection?.kernel
       ) {
         const model = this._service.model;
-        model.clear();
+        model.clearExceptBreakpoints();
       }
 
       updateAttribute();
@@ -310,6 +310,12 @@ export class DebuggerHandler implements DebuggerHandler.IHandler {
       await this._service.stop();
     };
 
+    const toggleDebuggerOff = async (): Promise<void> => {
+      this._service.session!.connection = connection;
+      await this._service.session?.stop();
+      this._service.model.clearExceptBreakpoints();
+    };
+
     const startDebugger = async (): Promise<void> => {
       this._service.session!.connection = connection;
       this._previousConnection = connection;
@@ -327,7 +333,7 @@ export class DebuggerHandler implements DebuggerHandler.IHandler {
       }
       const debugButton = this._iconButtons[widget.id]!;
       if (isDebuggerOn()) {
-        await stopDebugger();
+        await toggleDebuggerOff();
         removeHandlers();
         updateIconButtonState(debugButton, false);
       } else {

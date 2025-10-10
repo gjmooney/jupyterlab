@@ -161,6 +161,19 @@ export class DebuggerModel implements IDebugger.Model.IService {
     this.title = '-';
   }
 
+  /**
+   * Clear the model except for breakpoints
+   */
+  clearExceptBreakpoints(): void {
+    this._stoppedThreads.clear();
+    this.callstack.frames = [];
+    this.variables.scopes = [];
+    this.sources.currentSource = null;
+    this.kernelSources.kernelSources = null;
+    this.title = '-';
+    console.log('to');
+  }
+
   private _disposed = new Signal<this, void>(this);
   private _isDisposed = false;
   private _hasRichVariableRendering = false;

@@ -986,6 +986,11 @@ export namespace IDebugger {
        * Clear the model.
        */
       clear(): void;
+
+      /**
+       * Clear the model except for breakpoints
+       */
+      clearExceptBreakpoints(): void;
     }
 
     /**
