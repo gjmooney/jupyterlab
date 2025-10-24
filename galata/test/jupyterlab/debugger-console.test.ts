@@ -83,6 +83,7 @@ test.describe('Debugger Console', () => {
     }
 
     try {
+      await page.notebook.activate(fileName);
       // Try to close notebook if it's still open
       await page.notebook.close();
     } catch (error) {
